@@ -10,81 +10,89 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download project
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
+      # The repository currently contains a root-level file named "app".
+      # Remove that placeholder before creating the Android module directories.
       - name: Prepare Android project
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
-          mkdir -p app/src/main/java/com/grandislanov/launcher app/src/main/assets
+          if [ -f app ]; then
+            rm app
+          fi
 
-          if [ ! -f app/src/main/AndroidManifest.xml ] && [ -f AndroidManifest.xml ]; then
+          mkdir -p app/src/main/java/com/grandislanov/launcher app/src/main/assets/images
+
+          if [ -f AndroidManifest.xml ]; then
             cp AndroidManifest.xml app/src/main/AndroidManifest.xml
           fi
-
-          if [ ! -f app/src/main/java/com/grandislanov/launcher/MainActivity.kt ] && [ -f MainActivity.kt ]; then
+          if [ -f MainActivity.kt ]; then
             cp MainActivity.kt app/src/main/java/com/grandislanov/launcher/MainActivity.kt
           fi
-
-          if [ ! -f app/src/main/assets/index.html ] && [ -f index.html ]; then
+          if [ -f index.html ]; then
             cp index.html app/src/main/assets/index.html
+          fi
+          if [ -f hero-launcher.png ]; then
+            cp hero-launcher.png app/src/main/assets/images/hero-launcher.png
           fi
 
           if [ ! -f app/build.gradle ]; then
             cat > app/build.gradle <<'EOF'
-            plugins {
-                id 'com.android.application'
-                id 'org.jetbrains.kotlin.android'
-            }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
 
-            android {
-                namespace 'com.grandislanov.launcher'
-                compileSdk 35
+android {
+    namespace 'com.grandislanov.launcher'
+    compileSdk 35
 
-                defaultConfig {
-                    applicationId 'com.grandislanov.launcher'
-                    minSdk 23
-                    targetSdk 28
-                    versionCode 1
-                    versionName '1.0'
-                }
+    defaultConfig {
+        applicationId 'com.grandislanov.launcher'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '1.0'
+    }
 
-                compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_17
-                    targetCompatibility JavaVersion.VERSION_17
-                }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 
-                kotlinOptions {
-                    jvmTarget = '17'
-                }
-            }
-            EOF
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+EOF
           fi
 
+          test -f settings.gradle
+          test -f build.gradle
           test -f app/build.gradle
           test -f app/src/main/AndroidManifest.xml
           test -f app/src/main/assets/index.html
           test -f app/src/main/java/com/grandislanov/launcher/MainActivity.kt
 
-      - name: Build APK
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
         run: gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Grand-Islanov-Launcher
+          name: Grand-Islanov-Launcher-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
-          
