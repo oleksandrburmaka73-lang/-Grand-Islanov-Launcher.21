@@ -1,0 +1,73 @@
+name: Build Grand Islanov APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # The phone upload may flatten folders. Rebuild the Android structure
+      # from the files uploaded into the repository root.
+      - name: Restore Android project folders if needed
+        shell: bash
+        run: |
+          set -e
+          mkdir -p app/src/main/assets app/src/main/java/com/grandislanov/launcher
+
+          [ ! -f app/src/main/AndroidManifest.xml ] && [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/AndroidManifest.xml || true
+          [ ! -f app/src/main/assets/index.html ] && [ -f index.html ] && mv index.html app/src/main/assets/index.html || true
+          [ ! -f app/src/main/java/com/grandislanov/launcher/MainActivity.kt ] && [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/grandislanov/launcher/MainActivity.kt || true
+
+          if [ ! -f app/build.gradle ]; then
+            cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
+
+          android {
+              namespace 'com.grandislanov.launcher'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.grandislanov.launcher'
+                  minSdk 23
+                  targetSdk 28
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+          fi
+
+          test -f app/src/main/AndroidManifest.xml
+          test -f app/src/main/assets/index.html
+          test -f app/src/main/java/com/grandislanov/launcher/MainActivity.kt
+          test -f settings.gradle
+          test -f build.gradle
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Grand-Islanov-RP-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
