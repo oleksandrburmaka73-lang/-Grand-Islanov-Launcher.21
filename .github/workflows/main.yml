@@ -25,21 +25,59 @@ jobs:
           gradle-version: '8.9'
 
       - name: Prepare Android project
+        shell: bash
         run: |
-          mkdir -p app/src/main/java/com/grandislanov/launcher
-          mkdir -p app/src/main/assets
+          set -e
 
-          if [ -f MainActivity.kt ]; then
-            cp MainActivity.kt app/src/main/java/com/grandislanov/launcher/
+          mkdir -p app/src/main/java/com/grandislanov/launcher app/src/main/assets
+
+          if [ ! -f app/src/main/AndroidManifest.xml ] && [ -f AndroidManifest.xml ]; then
+            cp AndroidManifest.xml app/src/main/AndroidManifest.xml
           fi
 
-          if [ -f AndroidManifest.xml ]; then
-            cp AndroidManifest.xml app/src/main/
+          if [ ! -f app/src/main/java/com/grandislanov/launcher/MainActivity.kt ] && [ -f MainActivity.kt ]; then
+            cp MainActivity.kt app/src/main/java/com/grandislanov/launcher/MainActivity.kt
           fi
 
-          if [ -f index.html ]; then
-            cp index.html app/src/main/assets/
+          if [ ! -f app/src/main/assets/index.html ] && [ -f index.html ]; then
+            cp index.html app/src/main/assets/index.html
           fi
+
+          if [ ! -f app/build.gradle ]; then
+            cat > app/build.gradle <<'EOF'
+            plugins {
+                id 'com.android.application'
+                id 'org.jetbrains.kotlin.android'
+            }
+
+            android {
+                namespace 'com.grandislanov.launcher'
+                compileSdk 35
+
+                defaultConfig {
+                    applicationId 'com.grandislanov.launcher'
+                    minSdk 23
+                    targetSdk 28
+                    versionCode 1
+                    versionName '1.0'
+                }
+
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+
+                kotlinOptions {
+                    jvmTarget = '17'
+                }
+            }
+            EOF
+          fi
+
+          test -f app/build.gradle
+          test -f app/src/main/AndroidManifest.xml
+          test -f app/src/main/assets/index.html
+          test -f app/src/main/java/com/grandislanov/launcher/MainActivity.kt
 
       - name: Build APK
         run: gradle --no-daemon assembleDebug
@@ -49,3 +87,4 @@ jobs:
         with:
           name: Grand-Islanov-Launcher
           path: app/build/outputs/apk/debug/app-debug.apk
+          
